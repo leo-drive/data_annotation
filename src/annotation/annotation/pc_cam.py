@@ -17,15 +17,15 @@ class PointcloudCamera(Node):
     def __init__(self):
         super().__init__('pointcloud_camera')
         qos_profile = rclpy.qos.qos_profile_sensor_data
-        self.pointcloud_sub= Subscriber(self, PointCloud2, '/sensing/lidar/concatenated/pointcloud', qos_profile=qos_profile)
+        self.pointcloud_sub= Subscriber(self, PointCloud2, '/sensing/lidar/top/pointcloud_raw', qos_profile=qos_profile)
         self.image_sub = Subscriber(self, Image, '/lucid_vision/camera_1/image', qos_profile=qos_profile)
-        self.approx_sync = ApproximateTimeSynchronizer([self.pointcloud_sub, self.image_sub], queue_size=10, slop=1)
+        self.approx_sync = ApproximateTimeSynchronizer([self.pointcloud_sub, self.image_sub], queue_size=10, slop=0.1)
         self.approx_sync.registerCallback(self.callback)
         self.json_data = {
             "images": [],
             "timestamp": 0.0,
             "device_heading": {
-                "x": 0.0,
+                "x": 0.0 ,
                 "y": 0.0,
                 "z": 0.0,
                 "w": 1.0
@@ -33,11 +33,12 @@ class PointcloudCamera(Node):
             "points": [],
             "device_position": {
                 "y": 0.0,
-                "x": 0.0,
-                "z": 0.0
+                "x": 0.310,
+                "z": 1.700
             }
         }
         self.msg_count = 0
+
         with open('/home/zeys/projects/golf_autoware/autoware/src/sensor_component/external/arena_camera/config/camera_f_info.yaml', 'r') as file:
              self.parameters = yaml.safe_load(file)
 
@@ -73,16 +74,16 @@ class PointcloudCamera(Node):
             },
             "heading": {
                 "y": 0.497,
-                "x":-0.500,
-                "z":-0.496,
-                "w":  0.506
+                "x": -0.500,
+                "z": -0.496,
+                "w": 0.506
             },
             "camera_model": "pinhole"
         })
-        self.json_data["images"] = image_data
+        # self.json_data["images"] = image_data
         json_filename = f"{self.msg_count}.json"
 
-        json_path = os.path.join("/home/zeys/projects/deepenai2/camera_lidar_data/", json_filename)
+        json_path = os.path.join("/home/zeys/projects/data_annotation/camera_lidar_data/", json_filename)
         with open(json_path, "w") as json_file:
             json.dump(self.json_data, json_file, indent=4)
 
@@ -92,7 +93,7 @@ class PointcloudCamera(Node):
         image_filename = f"{self.msg_count}.png"
         img_np = np.frombuffer(image_msg.data, dtype=np.uint8).reshape((image_msg.height, image_msg.width, -1))
         # Save image as PNG
-        image_path = os.path.join("/home/zeys/projects/deepenai2/camera_lidar_data/", image_filename)
+        image_path = os.path.join("/home/zeys/projects/data_annotation/camera_lidar_data/", image_filename)
         self.msg_count += 1
         cv2.imwrite(image_path, img_np)
         self.get_logger().info(
