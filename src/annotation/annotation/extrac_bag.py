@@ -63,13 +63,10 @@ def get_closest_index(arr, target):
 
 
 def sync_timestamps_binary_search(lidar_timestamps, camera_data):
-    # print(1111)
     for cam_key, cam_msg in camera_data.items():
-        # print(cam_key)
         cam_ts = cam_key.split('_')[-1]
         closest_index = get_closest_index(lidar_timestamps, cam_ts)
         closest_ts = lidar_timestamps[closest_index]
-        # print(closest_ts)
 
         json_data['images'].append(
             {
@@ -78,8 +75,6 @@ def sync_timestamps_binary_search(lidar_timestamps, camera_data):
                 'timestamp': closest_ts,
             }
         )
-    # print(json_data)
-
 
 json_data = {
     "images": [],
@@ -108,7 +103,6 @@ def process_pointcloud(topic, msg_type, msg, lidar_timestamps, camera_data):
             "i": float(p[3])
         })
         break
-    print(len(point_list))
 
     lidar_ts = float(msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9)
     if lidar_ts not in lidar_timestamps:
@@ -148,4 +142,3 @@ while reader.has_next():
 # to check not empyt files
 if all([lidar_timestamps, camera_data]):
     timestamp_mapping = sync_timestamps_binary_search(lidar_timestamps, camera_data)
-    # print(timestamp_mapping)
