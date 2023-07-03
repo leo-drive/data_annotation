@@ -6,6 +6,7 @@ import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 import sensor_msgs.msg
+import yaml
 import numpy as np
 import cv2
 
@@ -68,6 +69,35 @@ def sync_timestamps_binary_search(lidar_timestamps, camera_data):
         cam_ts = cam_key.split('_')[-1]
         closest_index = get_closest_index(lidar_timestamps, cam_ts)
         closest_ts = lidar_timestamps[closest_index]
+        with open('/home/zeys/projects/golf_autoware/autoware/src/sensor_component/external/arena_camera/config/camera_fr_info.yaml', 'r') as file:
+            parameters = yaml.safe_load(file)
+        json_data['images'].append(
+                {
+                    "fx": parameters['camera_matrix']['data'][0],
+                    "timestamp": closest_ts,
+                    "p2": parameters['distortion_coefficients']['data'][3],
+                    "k1": parameters['distortion_coefficients']['data'][0],
+                    "p1": parameters['distortion_coefficients']['data'][2],
+                    "k3": parameters['distortion_coefficients']['data'][4],
+                    "k2": parameters['distortion_coefficients']['data'][1],
+                    "cy": parameters['camera_matrix']['data'][5],
+                    "cx": parameters['camera_matrix']['data'][2],
+                    "image_url": f"{count}.png",
+                    "fy": parameters['camera_matrix']['data'][4],
+                    "position": {
+                        "y": -0.006,
+                        "x": 1.520,
+                        "z": 1.529
+                    },
+                    "heading": {
+                        "y": 0.497,
+                        "x": -0.500,
+                        "z": -0.496,
+                        "w": 0.506
+                    },
+                    "camera_model": "pinhole"
+                }
+         )
 
         # json_data['images'].append(
         #     {
