@@ -25,6 +25,7 @@ topic_types = reader.get_all_topics_and_types()
 # Create a map for quicker lookup
 type_map = {topic_types[i].name: topic_types[i].type for i in range(len(topic_types))}
 
+count=0
 camera_info_data = {}  # Dictionary to store camera info data for each camera topic
 closest_image_ts = {}
 lidar_ts = 0.0
@@ -68,13 +69,13 @@ def sync_timestamps_binary_search(lidar_timestamps, camera_data):
         closest_index = get_closest_index(lidar_timestamps, cam_ts)
         closest_ts = lidar_timestamps[closest_index]
 
-        json_data['images'].append(
-            {
-                # 'lorem_key': 'lorem_val',
-                # 'message': cam_msg,
-                'timestamp': closest_ts,
-            }
-        )
+        # json_data['images'].append(
+        #     {
+        #         # 'lorem_key': 'lorem_val',
+        #         # 'message': cam_msg,
+        #         'timestamp': closest_ts,
+        #     }
+        # )
 
 json_data = {
     "images": [],
