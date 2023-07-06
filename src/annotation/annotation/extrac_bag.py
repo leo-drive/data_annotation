@@ -1,6 +1,7 @@
 import os
 import json
 import math
+from cv_bridge import CvBridge
 from sensor_msgs_py import point_cloud2 as pc2
 import rosbag2_py
 from rclpy.serialization import deserialize_message
@@ -11,7 +12,7 @@ import numpy as np
 import cv2
 
 reader = rosbag2_py.SequentialReader()
-path = '/home/zeys/files/bags/zeyy/deepenai/all_camera4'
+path = '/home/zeys/files/bags/zeyy/deepenai/all_camera1'
 
 storage_option = rosbag2_py.StorageOptions(
     uri=path, storage_id="sqlite3")
@@ -26,7 +27,6 @@ topic_types = reader.get_all_topics_and_types()
 # Create a map for quicker lookup
 type_map = {topic_types[i].name: topic_types[i].type for i in range(len(topic_types))}
 
-count=0
 camera_info_data = {}  # Dictionary to store camera info data for each camera topic
 closest_image_ts = {}
 lidar_ts = 0.0
@@ -65,13 +65,15 @@ def get_closest_index(arr, target):
 
 
 def sync_timestamps_binary_search(lidar_timestamps, camera_data):
+    image_data=[]
+    bridge = CvBridge()
     for cam_key, cam_msg in camera_data.items():
         cam_ts = cam_key.split('_')[-1]
         closest_index = get_closest_index(lidar_timestamps, cam_ts)
         closest_ts = lidar_timestamps[closest_index]
-        with open('/home/zeys/projects/golf_autoware/autoware/src/sensor_component/external/arena_camera/config/camera_fr_info.yaml', 'r') as file:
+        with open('/home/zeys/projects/golf_autoware/autoware/src/sensor_component/external/arena_camera/config/camera_f_info.yaml', 'r') as file:
             parameters = yaml.safe_load(file)
-        json_data['images'].append(
+            image_data.append(
                 {
                     "fx": parameters['camera_matrix']['data'][0],
                     "timestamp": closest_ts,
@@ -82,7 +84,7 @@ def sync_timestamps_binary_search(lidar_timestamps, camera_data):
                     "k2": parameters['distortion_coefficients']['data'][1],
                     "cy": parameters['camera_matrix']['data'][5],
                     "cx": parameters['camera_matrix']['data'][2],
-                    "image_url": f"{count}.png",
+                    "image_url": f"{counter}.png",
                     "fy": parameters['camera_matrix']['data'][4],
                     "position": {
                         "y": -0.006,
@@ -97,15 +99,21 @@ def sync_timestamps_binary_search(lidar_timestamps, camera_data):
                     },
                     "camera_model": "pinhole"
                 }
-         )
+        )
+    json_data["images"] = image_data
+     # Save the image file
+    image_filename = f"{counter}.png"
+    # Convert the CompressedImage to an uncompressed image using cv_bridge
+    image_cv = bridge.compressed_imgmsg_to_cv2(cam_msg, desired_encoding="bgr8")
+    height, width, _ = image_cv.shape
+    img_np = np.frombuffer(image_cv, dtype=np.uint8).reshape((height,width, -1))
+    image_path = os.path.join("/home/zeys/projects/data_annotation/camera_lidar_data/", image_filename)
+    cv2.imwrite(image_path, img_np)
+    json_filename = f"{counter}.json"
+    json_path = os.path.join("/home/zeys/projects/data_annotation/camera_lidar_data/", json_filename)
+    with open(json_path, "w") as json_file:
+        json.dump(json_data, json_file, indent=4)
 
-        # json_data['images'].append(
-        #     {
-        #         # 'lorem_key': 'lorem_val',
-        #         # 'message': cam_msg,
-        #         'timestamp': closest_ts,
-        #     }
-        # )
 
 json_data = {
     "images": [],
@@ -133,18 +141,20 @@ def process_pointcloud(topic, msg_type, msg, lidar_timestamps, camera_data):
             "z": float(p[2]),
             "i": float(p[3])
         })
-        break
-
     lidar_ts = float(msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9)
     if lidar_ts not in lidar_timestamps:
         lidar_timestamps.append(lidar_ts)
-
     json_data["points"] = point_list
     json_data["timestamp"] = lidar_ts
+    # json_filename = f"{counter}.json"
+    # # print(json_filename)
+    # json_path = os.path.join("/home/zeys/projects/data_annotation/camera_lidar_data/", json_filename)
+    # with open(json_path, "w") as json_file:
+    #     json.dump(json_data, json_file, indent=4)
     return lidar_timestamps, camera_data
 
 
-def process_image_compressed(topic, msg_type, msg, lidar_timestamps, camera_data):
+def process_image_compressed(topic, msg_type, msg, lidar_timestamps, camera_data,):
     camera_id = topic.split('/')[-2]
     if msg_type == sensor_msgs.msg.CompressedImage:
         if isinstance(msg, sensor_msgs.msg.CompressedImage):
@@ -160,7 +170,7 @@ topics = {
 
 lidar_timestamps = []
 camera_data = {}
-
+counter =0
 while reader.has_next():
     image_data = []
     (topic, data, t) = reader.read_next()
@@ -168,6 +178,7 @@ while reader.has_next():
     msg = deserialize_message(data, msg_type)
     if topic in topics.keys():
         lidar_timestamps, camera_data = topics[topic](topic, msg_type, msg, lidar_timestamps, camera_data)
+        counter+=1
 
 
 # to check not empyt files
